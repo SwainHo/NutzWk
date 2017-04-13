@@ -30,7 +30,7 @@ import java.util.Map;
 public class Service<T> extends EntityService<T> {
     protected final static int DEFAULT_PAGE_NUMBER = 10;
     protected final static JsonFormat jsonFormat = new JsonFormat().setIgnoreNull(false);
-
+    protected final String [] ABC ={"a_","b_","c_","d_","e_","f_","g_","h_","i_","j_","k_","l_","m_"};
     public Service() {
         super();
     }
@@ -574,5 +574,58 @@ public class Service<T> extends EntityService<T> {
         re.put("draw", draw);
         re.put("recordsTotal", length);
         return re;
+    }
+
+     /**
+     * @param length   页大小
+     * @param start    start
+     * @param draw     draw
+     * @param orders   排序
+     * @param columns  字段
+     * @param cnd      查询条件
+     * @param sql sql语句
+     * @param entityList 实体类列表
+     * @return
+     */
+    public NutMap list(int length, int start, int draw, List<DataTableOrder> orders, List<DataTableColumn> columns, Cnd cnd,String sql,List<Class> entityList) {
+        NutMap map = new NutMap()
+	 /* order参数带有类名标示，需截取*/	
+       if (orders != null && orders.size() > 0) {
+            for (DataTableOrder order : orders) {
+                DataTableColumn col = columns.get(order.getColumn());
+                int one = Sqls.escapeSqlFieldValue(col.getData()).toString().lastIndexOf(".");
+                String condition=Sqls.escapeSqlFieldValue(col.getData()).toString();
+                cnd.orderBy(condition.substring(one+1,condition.length()), order.getDir());
+            }
+        }
+        Pager pager = new OffsetPager(start, length);
+        Sql s = Sqls.queryRecord(sql);
+        s.setPager(pager);
+        s.setCondition(cnd);
+        dao().execute(s);
+        List<Map<String,Object>> result=new ArrayList<>();
+        List<Record> list = s.getList(Record.class);
+       
+            for (Record re : list) {
+                Map<String, Object> m = new HashMap<>();
+                for(int i=0;i<entityList.size();i++) {
+
+                Class<T> entityClass = (Class<T>) entityList.get(i);
+                String entityName=entityClass.getName();
+                int one = entityName.lastIndexOf(".");
+                String key=entityName.substring((one+1),entityName.length());
+             	m.put(key, re.toEntity(dao().getEntity(entityClass), ABC[i]) );
+
+            }
+                result.add(m);
+        }
+        map.put("recordsFiltered",result.size());
+        map.put("data",result);
+        map.put("draw", draw);
+        map.put("recordsTotal", length);
+
+        return map;
+
+
     }
 }
